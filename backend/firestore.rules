@@ -2,6 +2,40 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // TODO: WRITE ANY NECESSARY FIRESTORE RULES HERE
+
+    // ── Articles ──────────────────────────────────────────────
+    match /articles/{articleId} {
+
+      // Anyone can read articles (public news feed)
+      allow read: if true;
+
+      // Only authenticated users can create articles
+      allow create: if isAuthenticated() && isValidArticle(request.resource.data);
+
+      // Only the original author can update or delete their article
+      allow update, delete: if isAuthenticated()
+                            && request.auth.token.name == resource.data.author;
+    }
+  }
+
+  // ── Helper functions ────────────────────────────────────────
+
+  function isAuthenticated() {
+    return request.auth != null;
+  }
+
+  function isValidArticle(data) {
+    return data.keys().hasAll(['id', 'title', 'description', 'content',
+                               'author', 'category', 'thumbnailURL',
+                               'source', 'url', 'publishedAt'])
+      && data.title is string && data.title.size() > 0
+      && data.description is string && data.description.size() > 0
+      && data.content is string && data.content.size() > 0
+      && data.author is string && data.author.size() > 0
+      && data.category is string
+      && data.thumbnailURL is string
+      && data.source is string
+      && data.url is string
+      && data.publishedAt is timestamp;
   }
 }
